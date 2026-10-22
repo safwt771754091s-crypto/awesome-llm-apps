@@ -210,13 +210,14 @@ export function createProjectRouter({ pool, requireOwner }) {
     html = html.replace(/<link\b[^>]*>/gi, "");
     html = html.replace(/<meta\b[^>]*http-equiv\s*=\s*["']?refresh["']?[^>]*>/gi, "");
     const cssTag = "<style>" + css + "</style>";
-    const jsTag = "<script>" + appJs + "</script>";
+    const nonce = randomBytes(16).toString("base64");
+    const jsTag = '<script nonce="' + nonce + '">' + appJs + "</script>";
     if (/<head\b[^>]*>/i.test(html)) html = html.replace(/<head\b[^>]*>/i, (head) => head + cssTag);
     else html = "<head>" + cssTag + "</head>" + html;
     if (/<\/body\s*>/i.test(html)) html = html.replace(/<\/body\s*>/i, jsTag + "</body>");
     else html += jsTag;
     res.setHeader("Cache-Control", "no-store");
-    res.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; frame-src 'none'; frame-ancestors 'self'");
+    res.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'nonce-" + nonce + "'; style-src 'unsafe-inline'; img-src data: blob:; media-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; frame-src 'none'; frame-ancestors 'self'");
     res.setHeader("Referrer-Policy", "no-referrer");
     res.type("html").send(html);
   });
