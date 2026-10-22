@@ -137,7 +137,7 @@ $("loadProjects").addEventListener("click", async () => {
     const data = await api("/api/projects/?limit=20");
     const projects = Array.isArray(data.projects) ? data.projects : [];
     $("projectList").textContent = projects.length
-      ? projects.map((project) => project.name + " — " + project.status + " — " + project.id).join("\\n")
+      ? projects.map((project) => project.name + " — " + project.status + " — " + project.id).join(" | ")
       : "لا توجد مشاريع محفوظة حتى الآن.";
   } catch (error) {
     $("projectList").textContent = "تعذر جلب المشاريع: " + error.message;
