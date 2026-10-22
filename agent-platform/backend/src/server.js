@@ -4,7 +4,6 @@ import { Pool } from "pg";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import path from "node:path";
 
 const app = express();
 const port = Number(process.env.PORT || 8080);
