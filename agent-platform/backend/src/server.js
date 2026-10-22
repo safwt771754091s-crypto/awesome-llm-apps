@@ -190,10 +190,10 @@ app.post("/api/tasks", requireOwner, async (req, res) => {
 });
 
 app.get("/api/tasks/:id", requireOwner, async (req, res) => {
-  if (!pool) return res.status(503).json({ error: "database_not_configured", requestId: req.requestId });
   if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) {
     return res.status(400).json({ error: "invalid_task_id", requestId: req.requestId });
   }
+  if (!pool) return res.status(503).json({ error: "database_not_configured", requestId: req.requestId });
   try {
     const result = await pool.query(
       "SELECT id, task_type, status, plan, error_code, model, created_at FROM agent_tasks WHERE id = $1",
