@@ -1,6 +1,6 @@
 import express from "express";
 import archiver from "archiver";
-import { randomUUID } from "node:crypto";
+import { randomUUID, randomBytes } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Script } from "node:vm";
@@ -97,6 +97,18 @@ function validateJavaScriptFiles(files) {
 
 export function createProjectRouter({ pool, requireOwner }) {
   const router = express.Router();
+  const previews = new Map();
+  const previewLifetimeMs = 5 * 60 * 1000;
+  function findPreview(token) {
+    const entry = previews.get(token);
+    if (!entry || entry.expiresAt <= Date.now()) { previews.delete(token); return null; }
+    return entry;
+  }
+  function cleanPreviews() {
+    const now = Date.now();
+    for (const [key, value] of previews) if (value.expiresAt <= now) previews.delete(key);
+    while (previews.size > 200) previews.delete(previews.keys().next().value);
+  }
 
   router.post("/generate", requireOwner, async (req, res) => {
     const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
@@ -151,6 +163,58 @@ export function createProjectRouter({ pool, requireOwner }) {
       const code = known.includes(rawCode) ? rawCode : (error.name === "TimeoutError" ? "llm_timeout" : "project_generation_failed");
       res.status(code === "llm_not_configured" ? 503 : 502).json({ error: code, requestId: req.requestId });
     }
+  });
+
+  router.post("/:id/preview", requireOwner, async (req, res) => {
+    if (!pool) return res.status(503).json({ error: "database_not_configured", requestId: req.requestId });
+    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(400).json({ error: "invalid_project_id", requestId: req.requestId });
+    try {
+      const result = await pool.query("SELECT files FROM agent_projects WHERE id=$1", [req.params.id]);
+      if (!result.rowCount) return res.status(404).json({ error: "project_not_found", requestId: req.requestId });
+      cleanPreviews();
+      const token = randomBytes(32).toString("hex");
+      previews.set(token, { files: Array.isArray(result.rows[0].files) ? result.rows[0].files : [], expiresAt: Date.now() + previewLifetimeMs });
+      res.status(201).json({ url: "/api/projects/preview/" + token, expiresInSeconds: 300, requestId: req.requestId });
+    } catch {
+      res.status(503).json({ error: "persistence_unavailable", requestId: req.requestId });
+    }
+  });
+
+  router.get("/preview/:token/app.css", (req, res) => {
+    const preview = findPreview(req.params.token);
+    if (!preview) return res.status(404).type("text").send("Preview expired");
+    const file = preview.files.find((item) => item.path === "app.css");
+    res.setHeader("Cache-Control", "no-store");
+    res.type("text/css").send(typeof file?.content === "string" ? file.content : "");
+  });
+
+  router.get("/preview/:token/app.js", (req, res) => {
+    const preview = findPreview(req.params.token);
+    if (!preview) return res.status(404).type("text").send("Preview expired");
+    const file = preview.files.find((item) => item.path === "app.js");
+    res.setHeader("Cache-Control", "no-store");
+    res.type("application/javascript").send(typeof file?.content === "string" ? file.content : "");
+  });
+
+  router.get("/preview/:token", (req, res) => {
+    const preview = findPreview(req.params.token);
+    if (!preview) return res.status(404).type("text").send("Preview expired");
+    const index = preview.files.find((item) => item.path === "index.html");
+    if (typeof index?.content !== "string") return res.status(404).type("text").send("index.html missing");
+    let html = index.content;
+    html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, "");
+    html = html.replace(/<link\b[^>]*>/gi, "");
+    html = html.replace(/<meta\b[^>]*http-equiv\s*=\s*["']?refresh["']?[^>]*>/gi, "");
+    const cssTag = '<link rel="stylesheet" href="/api/projects/preview/' + req.params.token + '/app.css">';
+    const jsTag = '<script defer src="/api/projects/preview/' + req.params.token + '/app.js"></script>';
+    if (/<head\b[^>]*>/i.test(html)) html = html.replace(/<head\b[^>]*>/i, (head) => head + cssTag);
+    else html = "<head>" + cssTag + "</head>" + html;
+    if (/<\/body\s*>/i.test(html)) html = html.replace(/<\/body\s*>/i, jsTag + "</body>");
+    else html += jsTag;
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src data: blob:; media-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; frame-src 'none'; frame-ancestors 'self'");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.type("html").send(html);
   });
 
   router.get("/:id/download", requireOwner, async (req, res) => {
