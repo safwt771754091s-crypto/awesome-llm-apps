@@ -1,0 +1,41 @@
+name: Agent Hub Checks
+on:
+  push:
+    branches: [main, "feat/android-agent-hub"]
+    paths:
+      - "owner-agent-hub/**"
+      - ".github/workflows/agent-hub-checks.yml"
+  pull_request:
+    paths:
+      - "owner-agent-hub/**"
+      - ".github/workflows/agent-hub-checks.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Validate JavaScript syntax
+        run: node --check owner-agent-hub/app.js
+      - name: Validate manifest and required UI sections
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("owner-agent-hub")
+          for name in ("index.html", "style.css", "app.js", "sw.js", "manifest.webmanifest"):
+              assert (root / name).is_file() and (root / name).stat().st_size > 0, f"Missing or empty asset: {name}"
+          json.loads((root / "manifest.webmanifest").read_text())
+          html = (root / "index.html").read_text()
+          for token in ('id="view-home"', 'id="view-agents"', 'id="view-workbench"', 'id="view-history"', 'id="view-owner"', 'id="settingsDialog"'):
+              assert token in html, f"Missing UI section: {token}"
+          js = (root / "app.js").read_text()
+          for token in ("callModel", "runTask", "renderHistory", "renderAgents"):
+              assert token in js, f"Missing feature: {token}"
+          print("Agent Hub asset and feature checks passed.")
+          PY
