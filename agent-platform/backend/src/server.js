@@ -10,6 +10,7 @@ const port = Number(process.env.PORT || 8080);
 const maxBytes = Number(process.env.MAX_REQUEST_BYTES || 20000);
 const perMinute = Number(process.env.RATE_LIMIT_PER_MINUTE || 20);
 const schemaPath = fileURLToPath(new URL("./schema.sql", import.meta.url));
+const publicDir = fileURLToPath(new URL("./public/", import.meta.url));
 const pool = process.env.DATABASE_URL
   ? new Pool({
       connectionString: process.env.DATABASE_URL,
@@ -24,6 +25,7 @@ const rateBuckets = new Map();
 app.disable("x-powered-by");
 app.use(helmet());
 app.use(express.json({ limit: maxBytes, strict: true }));
+app.use(express.static(publicDir, { index: "index.html", dotfiles: "deny", etag: true, maxAge: "5m" }));
 app.use((req, res, next) => {
   req.requestId = randomUUID();
   res.setHeader("X-Request-Id", req.requestId);
