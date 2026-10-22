@@ -2,6 +2,7 @@ import express from "express";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { Script } from "node:vm";
 
 const MAX_FILES = 30;
 const MAX_FILE_CHARS = 100000;
@@ -26,7 +27,7 @@ function validateFiles(value) {
   return files;
 }
 
-async function generateFiles(prompt, name) {
+async function generateFiles(prompt, name, repairFeedback = "") {
   const base = (process.env.LLM_BASE_URL || "").replace(/\/+$/, "");
   const key = process.env.LLM_API_KEY;
   const model = process.env.LLM_MODEL;
@@ -53,7 +54,7 @@ async function generateFiles(prompt, name) {
           "Allowed files are only .html, .css, .js, .json, .md, .svg, .txt. Do not include dependencies, shell scripts, server code, secrets, external API keys, or instructions to execute commands.",
           "Keep the project self-contained; do not rely on remote image URLs. Do not claim you ran tests or deployed the project."
         ].join("\n") },
-        { role: "user", content: "Project name: " + name + "\nUser requirements:\n" + prompt }
+        { role: "user", content: "Project name: " + name + "\nUser requirements:\n" + prompt + (repairFeedback ? "\n\nThe previous generated JavaScript failed syntax validation. Fix these errors and return the complete corrected project files, not a patch:\n" + repairFeedback : "") }
       ]
     })
   });
@@ -78,6 +79,20 @@ async function generateFiles(prompt, name) {
   return { summary: String(parsed.summary || "تم إنشاء ملفات المشروع."), files: validateFiles(parsed.files) };
 }
 
+function validateJavaScriptFiles(files) {
+  const errors = [];
+  for (const file of files) {
+    if (path.extname(file.path).toLowerCase() !== ".js") continue;
+    try {
+      // Compile only: never execute model-generated JavaScript on the API server.
+      new Script(file.content, { filename: file.path });
+    } catch (error) {
+      errors.push(file.path + ": " + String(error.message).slice(0, 240));
+    }
+  }
+  return errors;
+}
+
 export function createProjectRouter({ pool, requireOwner }) {
   const router = express.Router();
 
@@ -89,7 +104,18 @@ export function createProjectRouter({ pool, requireOwner }) {
     const id = randomUUID();
     let projectDir;
     try {
-      const generated = await generateFiles(prompt, name);
+      let generated;
+      let syntaxErrors = [];
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        generated = await generateFiles(prompt, name, syntaxErrors.join("\\n"));
+        syntaxErrors = validateJavaScriptFiles(generated.files);
+        if (syntaxErrors.length === 0) break;
+      }
+      if (syntaxErrors.length) {
+        const error = new Error("generated_javascript_syntax_invalid");
+        error.code = "generated_javascript_syntax_invalid";
+        throw error;
+      }
       const workspace = path.resolve(process.env.PROJECT_WORKSPACE || "./workspace/projects");
       projectDir = path.resolve(workspace, id);
       if (!projectDir.startsWith(workspace + path.sep)) return res.status(400).json({ error: "unsafe_project_path", requestId: req.requestId });
@@ -117,7 +143,7 @@ export function createProjectRouter({ pool, requireOwner }) {
       const rawCode = error.code || error.message;
       const known = ["llm_not_configured", "llm_provider_error", "invalid_model_response", "invalid_generated_files",
         "unsafe_generated_path", "unsupported_generated_file_type", "generated_file_limit_exceeded",
-        "generated_project_limit_exceeded_or_missing_index"];
+        "generated_project_limit_exceeded_or_missing_index", "generated_javascript_syntax_invalid"];
       const code = known.includes(rawCode) ? rawCode : (error.name === "TimeoutError" ? "llm_timeout" : "project_generation_failed");
       res.status(code === "llm_not_configured" ? 503 : 502).json({ error: code, requestId: req.requestId });
     }
