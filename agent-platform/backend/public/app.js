@@ -23,6 +23,55 @@ async function downloadProject(id) {
   link.remove();
   URL.revokeObjectURL(url);
 }
+
+function addPreviewButton(root, id) {
+  const button = document.createElement("button");
+  button.className = "secondary";
+  button.type = "button";
+  button.textContent = "معاينة التطبيق داخل إطار معزول";
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      const data = await api("/api/projects/" + encodeURIComponent(id) + "/files");
+      const files = data.project.files || [];
+      const getFile = (name) => files.find((file) => file.path === name)?.content || "";
+      let html = getFile("index.html");
+      if (!html) throw new Error("index.html_missing");
+      const css = getFile("app.css").replace(/<\/style/gi, "<\\/style");
+      const appJs = getFile("app.js").replace(/<\/script/gi, "<\\/script");
+      html = html.replace(/<link\b[^>]*>/gi, "");
+      html = html.replace(/<script\b[^>]*\bsrc\s*=\s*["'][^"']*["'][^>]*>\s*<\/script\s*>/gi, "");
+      const csp = '<meta http-equiv="Content-Security-Policy" content="default-src \\'none\\'; img-src data: blob:; style-src \\'unsafe-inline\\'; script-src \\'unsafe-inline\\'; connect-src \\'none\\'; form-action \\'none\\'; base-uri \\'none\\'; object-src \\'none\\'; frame-src \\'none\\'; media-src data: blob:">';
+      if (/<head\b[^>]*>/i.test(html)) html = html.replace(/<head\b[^>]*>/i, (match) => match + csp + "<style>" + css + "</style>");
+      else html = csp + "<style>" + css + "</style>" + html;
+      if (appJs) {
+        const script = "<script>" + appJs + "</script>";
+        if (/<\/body\s*>/i.test(html)) html = html.replace(/<\/body\s*>/i, script + "</body>");
+        else html += script;
+      }
+      let frame = root.querySelector("iframe[data-project-preview]");
+      if (!frame) {
+        frame = document.createElement("iframe");
+        frame.dataset.projectPreview = "true";
+        frame.title = "معاينة التطبيق المولّد داخل إطار معزول";
+        frame.setAttribute("sandbox", "allow-scripts");
+        frame.style.width = "100%";
+        frame.style.minHeight = "520px";
+        frame.style.border = "1px solid #64748b";
+        frame.style.borderRadius = "12px";
+        frame.style.background = "#fff";
+        root.append(frame);
+      }
+      frame.srcdoc = html;
+      button.textContent = "تحديث المعاينة";
+    } catch (error) {
+      button.textContent = "تعذرت المعاينة: " + error.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
+  root.append(button);
+}
 function addDownloadButton(root, id) {
   const button = document.createElement("button");
   button.className = "primary";
@@ -126,6 +175,7 @@ $("taskForm").addEventListener("submit", async (event) => {
     details.textContent = "معرّف المشروع: " + data.projectId;
     root.append(details);
     addDownloadButton(root, data.projectId);
+    addPreviewButton(root, data.projectId);
     setStatus("تم إنشاء الملفات — لم يُختبر البناء");
     $("lookupResult").textContent = "استخدم «عرض ملفات المشروع» لاسترجاع محتويات الملفات.";
   } catch (error) {
@@ -150,6 +200,7 @@ $("lookupForm").addEventListener("submit", async (event) => {
     heading.textContent = project.name + " — " + project.status;
     root.append(heading);
     addDownloadButton(root, project.id);
+    addPreviewButton(root, project.id);
     const summary = document.createElement("p");
     summary.textContent = project.summary;
     root.append(summary);
