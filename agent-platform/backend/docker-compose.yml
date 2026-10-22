@@ -23,6 +23,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 8080
+      HOST: 0.0.0.0
       OWNER_API_TOKEN: ${OWNER_API_TOKEN:?Set OWNER_API_TOKEN in .env}
       DATABASE_URL: postgresql://agent_platform:${POSTGRES_PASSWORD}@db:5432/agent_platform
       DATABASE_SSL: "false"
