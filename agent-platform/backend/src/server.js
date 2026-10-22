@@ -1,7 +1,7 @@
 import express from "express";
 import helmet from "helmet";
 import { Pool } from "pg";
-import { randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
@@ -24,13 +24,13 @@ const rateBuckets = new Map();
 
 app.disable("x-powered-by");
 app.use(helmet());
-app.use(express.json({ limit: maxBytes, strict: true }));
-app.use(express.static(publicDir, { index: "index.html", dotfiles: "deny", etag: true, maxAge: "5m" }));
 app.use((req, res, next) => {
   req.requestId = randomUUID();
   res.setHeader("X-Request-Id", req.requestId);
   next();
 });
+app.use(express.json({ limit: maxBytes, strict: true }));
+app.use(express.static(publicDir, { index: "index.html", dotfiles: "deny", etag: true, maxAge: "5m" }));
 
 function secretMatches(candidate, expected) {
   if (typeof candidate !== "string" || typeof expected !== "string") return false;
@@ -46,13 +46,14 @@ function requireOwner(req, res, next) {
     return res.status(401).json({ error: "unauthorized", requestId: req.requestId });
   }
   const now = Date.now();
-  const bucket = rateBuckets.get(candidate) || { start: now, count: 0 };
+  const rateKey = createHash("sha256").update(candidate).digest("hex");
+  const bucket = rateBuckets.get(rateKey) || { start: now, count: 0 };
   if (now - bucket.start >= 60000) {
     bucket.start = now;
     bucket.count = 0;
   }
   bucket.count += 1;
-  rateBuckets.set(candidate, bucket);
+  rateBuckets.set(rateKey, bucket);
   if (bucket.count > perMinute) {
     return res.status(429).json({ error: "rate_limited", requestId: req.requestId });
   }
