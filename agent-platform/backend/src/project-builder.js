@@ -142,6 +142,23 @@ export function createProjectRouter({ pool, requireOwner }) {
     while (previews.size > 200) previews.delete(previews.keys().next().value);
   }
 
+  router.get("/", requireOwner, async (req, res) => {
+    if (!pool) return res.status(503).json({ error: "database_not_configured", requestId: req.requestId });
+    const rawLimit = req.query.limit === undefined ? 20 : Number(req.query.limit);
+    if (!Number.isInteger(rawLimit) || rawLimit < 1 || rawLimit > 50) {
+      return res.status(400).json({ error: "limit_must_be_between_1_and_50", requestId: req.requestId });
+    }
+    try {
+      const result = await pool.query(
+        "SELECT id, name, summary, status, created_at FROM agent_projects ORDER BY created_at DESC LIMIT $1",
+        [rawLimit]
+      );
+      res.json({ projects: result.rows, requestId: req.requestId });
+    } catch {
+      res.status(503).json({ error: "persistence_unavailable", requestId: req.requestId });
+    }
+  });
+
   router.post("/generate", requireOwner, async (req, res) => {
     const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
     const name = typeof req.body?.name === "string" && req.body.name.trim() ? req.body.name.trim().slice(0, 80) : "مشروعي";
