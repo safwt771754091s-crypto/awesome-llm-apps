@@ -10,9 +10,13 @@ This service is a separate backend for the Agent Hub. It does not connect to Alf
 - Health endpoint, request-size limit, basic in-memory rate limit, Helmet security headers, and request IDs.
 - Book-to-app requests can receive a structured plan, but this version does not upload or OCR files, generate project files, execute code, build APKs, or deploy apps.
 
-## Run locally
+## Run locally with Docker (recommended)
 
-Requires Node.js 22+ and a PostgreSQL database. Create a database owned only by this platform, then apply `src/schema.sql` (the server also applies it at startup).
+See [LOCAL-SETUP.md](./LOCAL-SETUP.md). The local web console is served at `http://127.0.0.1:8080` when the Compose stack is running. Docker Compose creates a dedicated PostgreSQL database and keeps its port private.
+
+## Run locally without Docker
+
+Requires Node.js 22.9+ and a PostgreSQL database. Create a database owned only by this platform, then apply `src/schema.sql` (the server also applies it at startup).
 
 1. Copy `.env.example` to `.env`.
 2. Set `OWNER_API_TOKEN` to a random secret at least 32 characters long.
