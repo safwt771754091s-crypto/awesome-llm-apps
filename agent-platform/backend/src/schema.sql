@@ -21,3 +21,15 @@ CREATE TABLE IF NOT EXISTS agent_audit_events (
 );
 
 CREATE INDEX IF NOT EXISTS agent_audit_events_created_at_idx ON agent_audit_events (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS agent_projects (
+  id UUID PRIMARY KEY,
+  name TEXT NOT NULL CHECK (char_length(name) BETWEEN 1 AND 80),
+  prompt TEXT NOT NULL CHECK (char_length(prompt) BETWEEN 1 AND 12000),
+  summary TEXT NOT NULL,
+  files JSONB NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('generated', 'tested', 'deployed', 'failed')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS agent_projects_created_at_idx ON agent_projects (created_at DESC);
