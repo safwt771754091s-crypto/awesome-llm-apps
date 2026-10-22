@@ -139,3 +139,23 @@ test("project ZIP download rejects malformed project identifiers", async () => {
     else process.env.OWNER_API_TOKEN = previous;
   }
 });
+
+test("project preview creation requires owner authentication", async () => {
+  await withServer(async (base) => {
+    const response = await fetch(base + "/api/projects/00000000-0000-4000-8000-000000000000/preview", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}"
+    });
+    assert.equal(response.status, 401);
+    assert.equal((await response.json()).error, "unauthorized");
+  });
+});
+
+test("temporary preview rejects unknown capability tokens", async () => {
+  await withServer(async (base) => {
+    const response = await fetch(base + "/api/projects/preview/not-a-valid-token");
+    assert.equal(response.status, 404);
+    assert.equal(await response.text(), "Preview expired");
+  });
+});
