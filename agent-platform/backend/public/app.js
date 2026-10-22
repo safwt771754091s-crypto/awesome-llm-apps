@@ -128,6 +128,7 @@ $("check").addEventListener("click", async () => {
     $("connection").style.color = "#fca5a5";
   }
 });
+
 $("taskForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const prompt = $("prompt").value.trim();

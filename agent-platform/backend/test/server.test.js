@@ -86,6 +86,31 @@ test("task lookup rejects malformed identifiers before database access", async (
   }
 });
 
+test("recent project listing requires owner authentication", async () => {
+  await withServer(async (base) => {
+    const response = await fetch(base + "/api/projects/");
+    assert.equal(response.status, 401);
+    assert.equal((await response.json()).error, "unauthorized");
+  });
+});
+
+test("recent project listing reports missing database configuration safely", async () => {
+  const previous = process.env.OWNER_API_TOKEN;
+  process.env.OWNER_API_TOKEN = "test-token-that-is-long-enough-for-unit-testing-123456";
+  try {
+    await withServer(async (base) => {
+      const response = await fetch(base + "/api/projects/?limit=10", {
+        headers: { authorization: "Bearer " + process.env.OWNER_API_TOKEN }
+      });
+      assert.equal(response.status, 503);
+      assert.equal((await response.json()).error, "database_not_configured");
+    });
+  } finally {
+    if (previous === undefined) delete process.env.OWNER_API_TOKEN;
+    else process.env.OWNER_API_TOKEN = previous;
+  }
+});
+
 test("project source generation rejects requests without owner authentication", async () => {
   await withServer(async (base) => {
     const response = await fetch(base + "/api/projects/generate", {
