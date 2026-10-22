@@ -4,7 +4,9 @@
   "private": true,
   "description": "Secure API foundation for the autonomous app-builder platform",
   "type": "module",
-  "engines": { "node": ">=22.9.0" },
+  "engines": {
+    "node": ">=22.9.0"
+  },
   "scripts": {
     "start": "node --env-file-if-exists=.env src/server.js",
     "dev": "node --env-file-if-exists=.env --watch src/server.js",
@@ -13,6 +15,7 @@
   "dependencies": {
     "express": "^5.1.0",
     "helmet": "^8.1.0",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "archiver": "^7.0.1"
   }
 }
