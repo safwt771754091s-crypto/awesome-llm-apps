@@ -41,7 +41,7 @@ function addPreviewButton(root, id) {
       const appJs = getFile("app.js").replace(/<\/script/gi, "<\\/script");
       html = html.replace(/<link\b[^>]*>/gi, "");
       html = html.replace(/<script\b[^>]*\bsrc\s*=\s*["'][^"']*["'][^>]*>\s*<\/script\s*>/gi, "");
-      const csp = '<meta http-equiv="Content-Security-Policy" content="default-src \\'none\\'; img-src data: blob:; style-src \\'unsafe-inline\\'; script-src \\'unsafe-inline\\'; connect-src \\'none\\'; form-action \\'none\\'; base-uri \\'none\\'; object-src \\'none\\'; frame-src \\'none\\'; media-src data: blob:">';
+      const csp = "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; frame-src 'none'; media-src data: blob:\">";
       if (/<head\b[^>]*>/i.test(html)) html = html.replace(/<head\b[^>]*>/i, (match) => match + csp + "<style>" + css + "</style>");
       else html = csp + "<style>" + css + "</style>" + html;
       if (appJs) {
