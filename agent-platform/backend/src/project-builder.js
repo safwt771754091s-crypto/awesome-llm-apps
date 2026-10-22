@@ -166,8 +166,8 @@ export function createProjectRouter({ pool, requireOwner }) {
   });
 
   router.post("/:id/preview", requireOwner, async (req, res) => {
-    if (!pool) return res.status(503).json({ error: "database_not_configured", requestId: req.requestId });
     if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(400).json({ error: "invalid_project_id", requestId: req.requestId });
+    if (!pool) return res.status(503).json({ error: "database_not_configured", requestId: req.requestId });
     try {
       const result = await pool.query("SELECT files FROM agent_projects WHERE id=$1", [req.params.id]);
       if (!result.rowCount) return res.status(404).json({ error: "project_not_found", requestId: req.requestId });
@@ -223,8 +223,8 @@ export function createProjectRouter({ pool, requireOwner }) {
   });
 
   router.get("/:id/download", requireOwner, async (req, res) => {
-    if (!pool) return res.status(503).json({ error: "database_not_configured", requestId: req.requestId });
     if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(400).json({ error: "invalid_project_id", requestId: req.requestId });
+    if (!pool) return res.status(503).json({ error: "database_not_configured", requestId: req.requestId });
     try {
       const result = await pool.query("SELECT name, files FROM agent_projects WHERE id=$1", [req.params.id]);
       if (!result.rowCount) return res.status(404).json({ error: "project_not_found", requestId: req.requestId });
@@ -250,8 +250,8 @@ export function createProjectRouter({ pool, requireOwner }) {
   });
 
   router.get("/:id/files", requireOwner, async (req, res) => {
-    if (!pool) return res.status(503).json({ error: "database_not_configured", requestId: req.requestId });
     if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(400).json({ error: "invalid_project_id", requestId: req.requestId });
+    if (!pool) return res.status(503).json({ error: "database_not_configured", requestId: req.requestId });
     try {
       const result = await pool.query("SELECT id, name, summary, files, status, created_at FROM agent_projects WHERE id=$1", [req.params.id]);
       if (!result.rowCount) return res.status(404).json({ error: "project_not_found", requestId: req.requestId });
