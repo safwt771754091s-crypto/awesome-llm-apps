@@ -1,0 +1,50 @@
+name: Agent Platform Security Gate
+
+on:
+  push:
+    branches: [main, "security/agent-platform-hardening"]
+    paths:
+      - "agent-platform/backend/**"
+      - ".github/workflows/agent-platform-security.yml"
+  pull_request:
+    paths:
+      - "agent-platform/backend/**"
+      - ".github/workflows/agent-platform-security.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-platform-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: agent-platform/backend
+    env:
+      NODE_ENV: test
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Resolve dependency graph for audit
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - name: Run API tests
+        run: npm test
+      - name: Check JavaScript syntax
+        run: |
+          node --check src/server.js
+          node --check src/project-builder.js
+          node --check public/app.js
