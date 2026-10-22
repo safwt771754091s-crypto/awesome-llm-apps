@@ -128,6 +128,18 @@ $("check").addEventListener("click", async () => {
     $("connection").style.color = "#fca5a5";
   }
 });
+$("loadProjects").addEventListener("click", async () => {
+  $("projectList").textContent = "جارٍ جلب المشاريع المحفوظة...";
+  try {
+    const data = await api("/api/projects/?limit=20");
+    const lines = (data.projects || []).map((project) =>
+      project.name + " — " + project.status + " — " + project.id
+    );
+    $("projectList").textContent = lines.length ? lines.join("\\n") : "لا توجد مشاريع محفوظة حتى الآن.";
+  } catch (error) {
+    $("projectList").textContent = "تعذر جلب المشاريع: " + error.message;
+  }
+});
 $("taskForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const prompt = $("prompt").value.trim();
