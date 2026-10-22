@@ -11,7 +11,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
-        buildConfigField("String", "WEB_APP_URL", "\"https://safwt771754091s-crypto.github.io/awesome-llm-apps/owner-agent-hub/\"")
+        buildConfigField("String", "WEB_APP_URL", "\"https://safwt771754091s-crypto.github.io/awesome-llm-apps/\"")
     }
     buildFeatures { buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
