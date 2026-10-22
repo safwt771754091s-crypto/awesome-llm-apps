@@ -56,7 +56,7 @@ async function generateFiles(prompt, name, type, repairFeedback = "") {
           "Keep the project self-contained; do not rely on remote image URLs. Do not claim you ran tests or deployed the project.",
           "This generator currently outputs static web frontend files only; do not pretend to create a working backend, database service, native APK, OCR pipeline, or deployment configuration."
         ].join("\n") },
-        { role: "user", content: "Project name: " + name + "\nProject type: " + type + "\nUser requirements:\n" + prompt + (repairFeedback ? "\n\nThe previous generated JavaScript failed syntax validation. Fix these errors and return the complete corrected project files, not a patch:\n" + repairFeedback : "") }
+        { role: "user", content: "Project name: " + name + "\nProject type: " + type + "\nUser requirements:\n" + prompt + (repairFeedback ? "\n\nThe previous generated project failed static validation. Fix these errors and return the complete corrected project files, not a patch:\n" + repairFeedback : "") }
       ]
     })
   });
@@ -81,15 +81,47 @@ async function generateFiles(prompt, name, type, repairFeedback = "") {
   return { summary: String(parsed.summary || "تم إنشاء ملفات المشروع."), files: validateFiles(parsed.files) };
 }
 
-function validateJavaScriptFiles(files) {
+function validateGeneratedProject(files) {
   const errors = [];
+  const html = files.find((file) => file.path === "index.html")?.content || "";
+  if (!/<html\b/i.test(html) || !/<\/html\s*>/i.test(html)) {
+    errors.push("index.html: missing complete html document structure");
+  }
   for (const file of files) {
-    if (path.extname(file.path).toLowerCase() !== ".js") continue;
-    try {
-      // Compile only: never execute model-generated JavaScript on the API server.
-      new Script(file.content, { filename: file.path });
-    } catch (error) {
-      errors.push(file.path + ": " + String(error.message).slice(0, 240));
+    const extension = path.extname(file.path).toLowerCase();
+    if (extension === ".js") {
+      try {
+        // Compile only: never execute model-generated JavaScript on the API server.
+        new Script(file.content, { filename: file.path });
+      } catch (error) {
+        errors.push(file.path + ": " + String(error.message).slice(0, 240));
+      }
+    }
+    if (extension === ".css") {
+      let depth = 0;
+      let quote = "";
+      let comment = false;
+      let escaped = false;
+      for (let i = 0; i < file.content.length; i += 1) {
+        const current = file.content[i];
+        const next = file.content[i + 1];
+        if (comment) {
+          if (current === "*" && next === "/") { comment = false; i += 1; }
+          continue;
+        }
+        if (quote) {
+          if (escaped) escaped = false;
+          else if (current === "\\") escaped = true;
+          else if (current === quote) quote = "";
+          continue;
+        }
+        if (current === "/" && next === "*") { comment = true; i += 1; continue; }
+        if (current === '"' || current === "'") { quote = current; continue; }
+        if (current === "{") depth += 1;
+        if (current === "}") depth -= 1;
+        if (depth < 0) break;
+      }
+      if (depth !== 0 || quote || comment || depth < 0) errors.push(file.path + ": unbalanced CSS syntax");
     }
   }
   return errors;
@@ -124,12 +156,12 @@ export function createProjectRouter({ pool, requireOwner }) {
       let syntaxErrors = [];
       for (let attempt = 0; attempt < 2; attempt += 1) {
         generated = await generateFiles(prompt, name, type, syntaxErrors.join("\\n"));
-        syntaxErrors = validateJavaScriptFiles(generated.files);
+        syntaxErrors = validateGeneratedProject(generated.files);
         if (syntaxErrors.length === 0) break;
       }
       if (syntaxErrors.length) {
-        const error = new Error("generated_javascript_syntax_invalid");
-        error.code = "generated_javascript_syntax_invalid";
+        const error = new Error("generated_project_validation_failed");
+        error.code = "generated_project_validation_failed";
         throw error;
       }
       const workspace = path.resolve(process.env.PROJECT_WORKSPACE || "./workspace/projects");
@@ -159,7 +191,7 @@ export function createProjectRouter({ pool, requireOwner }) {
       const rawCode = error.code || error.message;
       const known = ["llm_not_configured", "llm_provider_error", "invalid_model_response", "invalid_generated_files",
         "unsafe_generated_path", "unsupported_generated_file_type", "generated_file_limit_exceeded",
-        "generated_project_limit_exceeded_or_missing_index", "generated_javascript_syntax_invalid"];
+        "generated_project_limit_exceeded_or_missing_index", "generated_project_validation_failed"];
       const code = known.includes(rawCode) ? rawCode : (error.name === "TimeoutError" ? "llm_timeout" : "project_generation_failed");
       res.status(code === "llm_not_configured" ? 503 : 502).json({ error: code, requestId: req.requestId });
     }
