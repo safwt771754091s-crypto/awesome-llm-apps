@@ -85,3 +85,32 @@ test("task lookup rejects malformed identifiers before database access", async (
     else process.env.OWNER_API_TOKEN = previous;
   }
 });
+
+test("project source generation rejects requests without owner authentication", async () => {
+  await withServer(async (base) => {
+    const response = await fetch(base + "/api/projects/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "demo", prompt: "Build a small website" })
+    });
+    assert.equal(response.status, 401);
+    assert.equal((await response.json()).error, "unauthorized");
+  });
+});
+
+test("project file lookup rejects malformed identifiers after authentication", async () => {
+  const previous = process.env.OWNER_API_TOKEN;
+  process.env.OWNER_API_TOKEN = "test-token-that-is-long-enough-for-unit-testing-123456";
+  try {
+    await withServer(async (base) => {
+      const response = await fetch(base + "/api/projects/not-a-uuid/files", {
+        headers: { authorization: "Bearer " + process.env.OWNER_API_TOKEN }
+      });
+      assert.equal(response.status, 400);
+      assert.equal((await response.json()).error, "invalid_project_id");
+    });
+  } finally {
+    if (previous === undefined) delete process.env.OWNER_API_TOKEN;
+    else process.env.OWNER_API_TOKEN = previous;
+  }
+});
