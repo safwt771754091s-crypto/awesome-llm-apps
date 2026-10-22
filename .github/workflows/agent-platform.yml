@@ -1,0 +1,39 @@
+name: Agent Platform Backend
+
+on:
+  push:
+    paths:
+      - "agent-platform/backend/**"
+      - ".github/workflows/agent-platform.yml"
+  pull_request:
+    paths:
+      - "agent-platform/backend/**"
+      - ".github/workflows/agent-platform.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent-platform/backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: agent-platform/backend/package.json
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run API tests
+        run: npm test
+      - name: Check JavaScript syntax
+        run: |
+          node --check src/server.js
+          node --check src/project-builder.js
+          node --check public/app.js
