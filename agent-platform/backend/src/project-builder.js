@@ -1,4 +1,5 @@
 import express from "express";
+import archiver from "archiver";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -146,6 +147,33 @@ export function createProjectRouter({ pool, requireOwner }) {
         "generated_project_limit_exceeded_or_missing_index", "generated_javascript_syntax_invalid"];
       const code = known.includes(rawCode) ? rawCode : (error.name === "TimeoutError" ? "llm_timeout" : "project_generation_failed");
       res.status(code === "llm_not_configured" ? 503 : 502).json({ error: code, requestId: req.requestId });
+    }
+  });
+
+  router.get("/:id/download", requireOwner, async (req, res) => {
+    if (!pool) return res.status(503).json({ error: "database_not_configured", requestId: req.requestId });
+    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(400).json({ error: "invalid_project_id", requestId: req.requestId });
+    try {
+      const result = await pool.query("SELECT name, files FROM agent_projects WHERE id=$1", [req.params.id]);
+      if (!result.rowCount) return res.status(404).json({ error: "project_not_found", requestId: req.requestId });
+      const project = result.rows[0];
+      const safeName = String(project.name || "project").normalize("NFKD").replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "project";
+      res.status(200);
+      res.setHeader("Content-Type", "application/zip");
+      res.setHeader("Content-Disposition", 'attachment; filename="' + safeName + '.zip"');
+      const archive = archiver("zip", { zlib: { level: 6 } });
+      archive.on("error", () => {
+        if (!res.headersSent) res.status(500).json({ error: "archive_failed", requestId: req.requestId });
+        else res.destroy();
+      });
+      archive.pipe(res);
+      for (const file of (Array.isArray(project.files) ? project.files : [])) {
+        if (typeof file.path === "string" && typeof file.content === "string") archive.append(file.content, { name: file.path });
+      }
+      await archive.finalize();
+    } catch {
+      if (!res.headersSent) res.status(503).json({ error: "persistence_unavailable", requestId: req.requestId });
+      else res.destroy();
     }
   });
 
