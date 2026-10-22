@@ -1,0 +1,29 @@
+name: Agent Platform Backend CI
+
+on:
+  push:
+    branches: [main, "feat/autonomous-app-builder-platform"]
+    paths:
+      - "agent-platform/backend/**"
+      - ".github/workflows/agent-platform-backend.yml"
+  pull_request:
+    paths:
+      - "agent-platform/backend/**"
+      - ".github/workflows/agent-platform-backend.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent-platform/backend
+    env:
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm test

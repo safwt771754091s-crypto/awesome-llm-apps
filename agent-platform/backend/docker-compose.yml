@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: agent_platform
+      POSTGRES_USER: agent_platform
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - agent_platform_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent_platform -d agent_platform"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [private]
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      OWNER_API_TOKEN: ${OWNER_API_TOKEN:?Set OWNER_API_TOKEN in .env}
+      DATABASE_URL: postgresql://agent_platform:${POSTGRES_PASSWORD}@db:5432/agent_platform
+      DATABASE_SSL: "false"
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      LLM_API_KEY: ${LLM_API_KEY:?Set LLM_API_KEY in .env}
+      LLM_MODEL: ${LLM_MODEL:?Set LLM_MODEL in .env}
+      LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:-45000}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-20}
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks: [private]
+  # No generated project code is executed in the API container.
+  # Add a separate hardened sandbox service in a later phase.
+volumes:
+  agent_platform_db:
+networks:
+  private: {}
