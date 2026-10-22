@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const app = express();
 const port = Number(process.env.PORT || 8080);
+const host = process.env.HOST || "127.0.0.1";
 const maxBytes = Number(process.env.MAX_REQUEST_BYTES || 20000);
 const perMinute = Number(process.env.RATE_LIMIT_PER_MINUTE || 20);
 const schemaPath = fileURLToPath(new URL("./schema.sql", import.meta.url));
@@ -212,7 +213,7 @@ app.use((err, _req, res, _next) => {
 let server;
 async function start() {
   if (pool) await pool.query(await readFile(schemaPath, "utf8"));
-  server = app.listen(port, "0.0.0.0", () => {
+  server = app.listen(port, host, () => {
     console.log("Agent Platform API listening on port " + port);
   });
 }
