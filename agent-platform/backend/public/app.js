@@ -65,37 +65,85 @@ $("check").addEventListener("click", async () => {
 $("taskForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const prompt = $("prompt").value.trim();
+  const name = $("projectName").value.trim() || "مشروعي";
   if (!prompt) return;
   $("submit").disabled = true;
-  $("submit").textContent = "جارٍ إنشاء الخطة...";
-  setStatus("قيد المعالجة");
-  $("result").textContent = "يجري إرسال المهمة إلى الخادم...";
+  $("submit").textContent = "جارٍ كتابة ملفات المشروع...";
+  setStatus("يتم إنشاء ملفات فعلية");
+  $("result").textContent = "يرسل الطلب إلى وكيل البرمجة لإنشاء ملفات المصدر...";
   try {
     if (token().length < 32) throw new Error("أدخل رمز المالك الصحيح أولًا.");
-    const data = await api("/api/tasks", {method:"POST",body:JSON.stringify({prompt,type:$("type").value})});
-    renderPlan(data.plan);
-    $("taskId").value = data.taskId;
-    setStatus("اكتملت الخطة فقط");
+    const data = await api("/api/projects/generate", {method:"POST",body:JSON.stringify({prompt,name})});
+    $("taskId").value = data.projectId;
+    const root = $("result");
+    root.replaceChildren();
+    const summary = document.createElement("p");
+    summary.textContent = data.summary || "اكتمل توليد الملفات.";
+    root.append(summary);
+    const note = document.createElement("p");
+    note.textContent = "تم إنشاء ملفات المصدر وحفظها. لم يتم تشغيل الشيفرة أو اختبار البناء أو نشر التطبيق بعد.";
+    root.append(note);
+    const list = document.createElement("ul");
+    for (const file of (data.files || [])) {
+      const li = document.createElement("li");
+      li.textContent = file.path + " — " + file.size + " بايت";
+      list.append(li);
+    }
+    root.append(list);
+    const details = document.createElement("p");
+    details.textContent = "معرّف المشروع: " + data.projectId;
+    root.append(details);
+    setStatus("تم إنشاء الملفات — لم يُختبر البناء");
+    $("lookupResult").textContent = "استخدم «عرض ملفات المشروع» لاسترجاع محتويات الملفات.";
   } catch (error) {
-    $("result").textContent = "لم تنجح المهمة: " + error.message;
-    setStatus("تعذر التنفيذ");
+    $("result").textContent = "لم تنجح عملية إنشاء الملفات: " + error.message;
+    setStatus("تعذر إنشاء المشروع");
   } finally {
     $("submit").disabled = false;
-    $("submit").textContent = "حلّل الطلب وأنشئ خطة";
+    $("submit").textContent = "اكتب ملفات التطبيق";
   }
 });
 $("lookupForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const id = $("taskId").value.trim();
   if (!id) return;
-  $("lookupResult").textContent = "جارٍ البحث...";
+  $("lookupResult").textContent = "جارٍ جلب ملفات المشروع...";
   try {
-    const data = await api("/api/tasks/"+encodeURIComponent(id));
-    const task = data.task;
-    if (task.plan) renderPlan(task.plan);
-    else $("result").textContent = "حالة المهمة: " + task.status + " — " + (task.error_code || "");
-    $("lookupResult").textContent = "الحالة: " + task.status + " · النوع: " + task.task_type + " · التاريخ: " + task.created_at;
-    setStatus(task.status);
-  } catch (error) { $("lookupResult").textContent = "تعذر جلب المهمة: " + error.message; }
+    const data = await api("/api/projects/"+encodeURIComponent(id)+"/files");
+    const project = data.project;
+    const root = $("result");
+    root.replaceChildren();
+    const heading = document.createElement("h3");
+    heading.textContent = project.name + " — " + project.status;
+    root.append(heading);
+    const summary = document.createElement("p");
+    summary.textContent = project.summary;
+    root.append(summary);
+    for (const file of (project.files || [])) {
+      const section = document.createElement("section");
+      section.className = "phase";
+      const title = document.createElement("h3");
+      title.textContent = file.path;
+      section.append(title);
+      const pre = document.createElement("pre");
+      pre.style.whiteSpace = "pre-wrap";
+      pre.style.overflowWrap = "anywhere";
+      pre.textContent = file.content;
+      section.append(pre);
+      const copy = document.createElement("button");
+      copy.className = "secondary";
+      copy.type = "button";
+      copy.textContent = "نسخ محتوى الملف";
+      copy.addEventListener("click", async () => {
+        try { await navigator.clipboard.writeText(file.content); copy.textContent = "تم النسخ"; }
+        catch { copy.textContent = "تعذر النسخ — حدّد النص يدويًا"; }
+      });
+      section.append(copy);
+      root.append(section);
+    }
+    $("lookupResult").textContent = "المشروع: " + project.name + " · الحالة: " + project.status + " · الملفات: " + (project.files || []).length;
+    setStatus("تم استرجاع ملفات المصدر");
+  } catch (error) {
+    $("lookupResult").textContent = "تعذر جلب المشروع: " + error.message;
+  }
 });
-})();
