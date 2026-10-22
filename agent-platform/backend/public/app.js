@@ -154,7 +154,7 @@ $("taskForm").addEventListener("submit", async (event) => {
   $("result").textContent = "يرسل الطلب إلى وكيل البرمجة لإنشاء ملفات المصدر...";
   try {
     if (token().length < 32) throw new Error("أدخل رمز المالك الصحيح أولًا.");
-    const data = await api("/api/projects/generate", {method:"POST",body:JSON.stringify({prompt,name})});
+    const data = await api("/api/projects/generate", {method:"POST",body:JSON.stringify({prompt,name,type:$("type").value})});
     $("taskId").value = data.projectId;
     const root = $("result");
     root.replaceChildren();
