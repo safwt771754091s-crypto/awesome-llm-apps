@@ -147,3 +147,4 @@ $("lookupForm").addEventListener("submit", async (event) => {
     $("lookupResult").textContent = "تعذر جلب المشروع: " + error.message;
   }
 });
+})();
