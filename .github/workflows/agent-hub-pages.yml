@@ -1,0 +1,53 @@
+name: Agent Hub Pages
+on:
+  push:
+    branches: [main]
+    paths:
+      - "owner-agent-hub/**"
+      - ".github/workflows/agent-hub-pages.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: "agent-hub-pages"
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate web assets
+        run: |
+          test -s owner-agent-hub/index.html
+          test -s owner-agent-hub/style.css
+          test -s owner-agent-hub/app.js
+          test -s owner-agent-hub/manifest.webmanifest
+          node --check owner-agent-hub/app.js
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          json.loads(Path("owner-agent-hub/manifest.webmanifest").read_text())
+          html = Path("owner-agent-hub/index.html").read_text()
+          for token in ('id="view-home"', 'id="view-agents"', 'id="view-workbench"', 'id="view-history"', 'id="view-owner"'):
+              assert token in html, f"Missing view: {token}"
+          print("Agent Hub static checks passed.")
+          PY
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: owner-agent-hub
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
