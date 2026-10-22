@@ -4,6 +4,7 @@ import { Pool } from "pg";
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { createProjectRouter } from "./project-builder.js";
 
 const app = express();
 const port = Number(process.env.PORT || 8080);
@@ -32,6 +33,7 @@ app.use((req, res, next) => {
 });
 app.use(express.json({ limit: maxBytes, strict: true }));
 app.use(express.static(publicDir, { index: "index.html", dotfiles: "deny", etag: true, maxAge: "5m" }));
+app.use("/api/projects", createProjectRouter({ get pool() { return pool; }, requireOwner }));
 
 function secretMatches(candidate, expected) {
   if (typeof candidate !== "string" || typeof expected !== "string") return false;
