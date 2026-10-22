@@ -5,6 +5,38 @@ const tokenKey = "agent-platform.owner-token";
 $("token").value = sessionStorage.getItem(tokenKey) || "";
 function token() { return $("token").value.trim() || sessionStorage.getItem(tokenKey) || ""; }
 function setStatus(text) { $("taskStatus").textContent = text; }
+async function downloadProject(id) {
+  const response = await fetch("/api/projects/" + encodeURIComponent(id) + "/download", {
+    headers: { "Authorization": "Bearer " + token() }
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({ error: "download_failed" }));
+    throw new Error(data.error || "download_failed");
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "project-" + id.slice(0, 8) + ".zip";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+function addDownloadButton(root, id) {
+  const button = document.createElement("button");
+  button.className = "primary";
+  button.type = "button";
+  button.textContent = "تنزيل المشروع ZIP";
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    try { await downloadProject(id); button.textContent = "تم طلب التنزيل"; }
+    catch (error) { button.textContent = "فشل التنزيل: " + error.message; }
+    finally { button.disabled = false; }
+  });
+  root.append(button);
+}
+
 function escapeText(value) { return String(value ?? ""); }
 function renderPlan(plan) {
   const root = $("result");
@@ -93,6 +125,7 @@ $("taskForm").addEventListener("submit", async (event) => {
     const details = document.createElement("p");
     details.textContent = "معرّف المشروع: " + data.projectId;
     root.append(details);
+    addDownloadButton(root, data.projectId);
     setStatus("تم إنشاء الملفات — لم يُختبر البناء");
     $("lookupResult").textContent = "استخدم «عرض ملفات المشروع» لاسترجاع محتويات الملفات.";
   } catch (error) {
@@ -116,6 +149,7 @@ $("lookupForm").addEventListener("submit", async (event) => {
     const heading = document.createElement("h3");
     heading.textContent = project.name + " — " + project.status;
     root.append(heading);
+    addDownloadButton(root, project.id);
     const summary = document.createElement("p");
     summary.textContent = project.summary;
     root.append(summary);
