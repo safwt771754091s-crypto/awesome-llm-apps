@@ -39,5 +39,4 @@ services:
 volumes:
   agent_platform_db:
 networks:
-  private:
-    internal: true
+  private: {}
