@@ -28,7 +28,7 @@ function validateFiles(value) {
   return files;
 }
 
-async function generateFiles(prompt, name, repairFeedback = "") {
+async function generateFiles(prompt, name, type, repairFeedback = "") {
   const base = (process.env.LLM_BASE_URL || "").replace(/\/+$/, "");
   const key = process.env.LLM_API_KEY;
   const model = process.env.LLM_MODEL;
@@ -48,14 +48,15 @@ async function generateFiles(prompt, name, repairFeedback = "") {
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: [
-          "You are an expert software engineer generating a complete small static web application.",
+          "You are an expert software engineer generating a complete small static web application. Project type: " + type + ".",
           "Return JSON only: { \"summary\": string, \"files\": [{\"path\": string, \"content\": string}] }.",
           "Generate real complete source files, not a plan. Include index.html, app.css, and app.js where useful.",
           "Use semantic accessible HTML, responsive CSS, and working client-side interactions. Default to Arabic RTL if the user writes Arabic.",
           "Allowed files are only .html, .css, .js, .json, .md, .svg, .txt. Do not include dependencies, shell scripts, server code, secrets, external API keys, or instructions to execute commands.",
-          "Keep the project self-contained; do not rely on remote image URLs. Do not claim you ran tests or deployed the project."
+          "Keep the project self-contained; do not rely on remote image URLs. Do not claim you ran tests or deployed the project.",
+          "This generator currently outputs static web frontend files only; do not pretend to create a working backend, database service, native APK, OCR pipeline, or deployment configuration."
         ].join("\n") },
-        { role: "user", content: "Project name: " + name + "\nUser requirements:\n" + prompt + (repairFeedback ? "\n\nThe previous generated JavaScript failed syntax validation. Fix these errors and return the complete corrected project files, not a patch:\n" + repairFeedback : "") }
+        { role: "user", content: "Project name: " + name + "\nProject type: " + type + "\nUser requirements:\n" + prompt + (repairFeedback ? "\n\nThe previous generated JavaScript failed syntax validation. Fix these errors and return the complete corrected project files, not a patch:\n" + repairFeedback : "") }
       ]
     })
   });
@@ -100,6 +101,8 @@ export function createProjectRouter({ pool, requireOwner }) {
   router.post("/generate", requireOwner, async (req, res) => {
     const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
     const name = typeof req.body?.name === "string" && req.body.name.trim() ? req.body.name.trim().slice(0, 80) : "مشروعي";
+    const allowedTypes = new Set(["app", "platform", "book_to_app", "general"]);
+    const type = allowedTypes.has(req.body?.type) ? req.body.type : "app";
     if (!prompt || prompt.length > 12000) return res.status(400).json({ error: "prompt_must_be_1_to_12000_characters", requestId: req.requestId });
     if (!pool) return res.status(503).json({ error: "database_not_configured", requestId: req.requestId });
     const id = randomUUID();
@@ -108,7 +111,7 @@ export function createProjectRouter({ pool, requireOwner }) {
       let generated;
       let syntaxErrors = [];
       for (let attempt = 0; attempt < 2; attempt += 1) {
-        generated = await generateFiles(prompt, name, syntaxErrors.join("\\n"));
+        generated = await generateFiles(prompt, name, type, syntaxErrors.join("\\n"));
         syntaxErrors = validateJavaScriptFiles(generated.files);
         if (syntaxErrors.length === 0) break;
       }
