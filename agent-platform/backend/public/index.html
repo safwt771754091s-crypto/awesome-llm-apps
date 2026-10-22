@@ -19,7 +19,7 @@
 <p class="muted">هذه المرحلة تنشئ ملفات ويب ثابتة وتحفظها. لا تشغّل الملفات الناتجة على الخادم؛ الاختبار المعزول ورفع PDF وAPK والنشر لم تُفعّل بعد.</p>
 </form></section>
 <section class="panel"><div class="result-head"><h2>نتيجة المهمة</h2><span id="taskStatus" class="status">بانتظار طلبك</span></div><div id="result" aria-live="polite"><p class="muted">ستظهر خطة المهمة هنا بعد نجاح الاتصال بالنموذج وقاعدة البيانات.</p></div></section>
-<section class="panel"><h2>المهام السابقة</h2><p class="muted">أدخل معرّف المشروع لاسترجاع محتوى ملفات المصدر ونسخها.</p><form id="lookupForm"><label for="taskId">معرّف المهمة</label><input id="taskId" placeholder="UUID"><button class="secondary" type="submit">عرض ملفات المشروع</button></form><div id="lookupResult"></div></section>
+<section class="panel"><h2>المشاريع السابقة</h2><p class="muted">اعرض المشاريع التي أنشأتها سابقًا.</p><button id="loadProjects" class="secondary" type="button">عرض آخر 20 مشروعًا</button><p id="projectList" aria-live="polite"></p><p class="muted">يمكنك إدخال معرّف المشروع أدناه لاسترجاع الملفات.</p><form id="lookupForm"><label for="taskId">معرّف المهمة</label><input id="taskId" placeholder="UUID"><button class="secondary" type="submit">عرض ملفات المشروع</button></form><div id="lookupResult"></div></section>
 <footer>هذه لوحة محلية. لا تشغّل الشيفرات التي ينتجها النموذج. يلزم إكمال sandbox آمن قبل بناء المشاريع فعليًا.</footer>
 </main>
 </body>

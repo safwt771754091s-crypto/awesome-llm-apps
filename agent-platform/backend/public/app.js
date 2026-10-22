@@ -129,6 +129,22 @@ $("check").addEventListener("click", async () => {
   }
 });
 
+$("loadProjects").addEventListener("click", async () => {
+  const button = $("loadProjects");
+  button.disabled = true;
+  $("projectList").textContent = "جارٍ جلب المشاريع المحفوظة...";
+  try {
+    const data = await api("/api/projects/?limit=20");
+    const projects = Array.isArray(data.projects) ? data.projects : [];
+    $("projectList").textContent = projects.length
+      ? projects.map((project) => project.name + " — " + project.status + " — " + project.id).join(" | ")
+      : "لا توجد مشاريع محفوظة حتى الآن.";
+  } catch (error) {
+    $("projectList").textContent = "تعذر جلب المشاريع: " + error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
 $("taskForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const prompt = $("prompt").value.trim();
