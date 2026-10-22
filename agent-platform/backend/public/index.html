@@ -9,17 +9,17 @@
 <body>
 <header><div><span class="mark">AI</span><div><strong>مركز بناء التطبيقات بالوكلاء</strong><small>نسخة محلية · Agent Platform</small></div></div><span id="connection" class="status">لم يتم الاتصال</span></header>
 <main>
-<section class="hero"><p class="eyebrow">من طلبك إلى مشروع قابل للاختبار</p><h1>ماذا تريد أن أبني لك؟</h1><p>اكتب المطلوب بالعربية. تبدأ النسخة الحالية بإنشاء خطة تنفيذ محفوظة، ثم ستُضاف مراحل توليد الملفات والاختبار والنشر.</p></section>
+<section class="hero"><p class="eyebrow">من طلبك إلى مشروع قابل للاختبار</p><h1>ماذا تريد أن أبني لك؟</h1><p>اكتب وصف التطبيق بالعربية. يولّد الوكيل ملفات مصدر فعلية ويحفظها في مساحة المشروع. تشغيل الشيفرة والاختبار والنشر الآلي مراحل لاحقة.</p></section>
 <section class="panel setup"><h2>إعداد الاتصال المحلي</h2><p class="muted">أدخل رمز المالك الذي وضعته في ملف البيئة. يُحفظ داخل جلسة المتصفح فقط.</p><label for="token">رمز المالك</label><input id="token" type="password" autocomplete="off" placeholder="OWNER_API_TOKEN">
 <div class="actions"><button id="saveToken" class="secondary">حفظ الرمز لهذه الجلسة</button><button id="check" class="secondary">فحص الخادم</button></div></section>
 <section class="panel"><h2>إنشاء مهمة</h2><form id="taskForm">
-<label for="type">نوع المشروع</label><select id="type"><option value="app">إنشاء تطبيق</option><option value="platform">إنشاء منصة إلكترونية</option><option value="book_to_app">تحويل كتاب إلى تطبيق تعليمي</option><option value="general">مهمة أخرى</option></select>
+<label for="projectName">اسم المشروع</label><input id="projectName" maxlength="80" placeholder="مثال: تطبيق مدرستي"><label for="type">نوع المشروع</label><select id="type"><option value="app">إنشاء تطبيق</option><option value="platform">إنشاء منصة إلكترونية</option><option value="book_to_app">تحويل كتاب إلى تطبيق تعليمي</option><option value="general">مهمة أخرى</option></select>
 <label for="prompt">اكتب ما تريد بالتفصيل</label><textarea id="prompt" rows="7" maxlength="12000" required placeholder="مثال: أنشئ تطبيقًا تعليميًا للرياضيات للصف السادس، مع شرح الدروس وأسئلة تفاعلية وسجل تقدم الطالب..."></textarea>
-<button id="submit" class="primary" type="submit">حلّل الطلب وأنشئ خطة</button>
-<p class="muted">لا ترفع ملفات سرية الآن؛ رفع الكتب وOCR ليسا مفعّلين في هذه النسخة.</p>
+<button id="submit" class="primary" type="submit">اكتب ملفات التطبيق</button>
+<p class="muted">هذه المرحلة تنشئ ملفات ويب ثابتة وتحفظها. لا تشغّل الملفات الناتجة على الخادم؛ الاختبار المعزول ورفع PDF وAPK والنشر لم تُفعّل بعد.</p>
 </form></section>
 <section class="panel"><div class="result-head"><h2>نتيجة المهمة</h2><span id="taskStatus" class="status">بانتظار طلبك</span></div><div id="result" aria-live="polite"><p class="muted">ستظهر خطة المهمة هنا بعد نجاح الاتصال بالنموذج وقاعدة البيانات.</p></div></section>
-<section class="panel"><h2>المهام السابقة</h2><p class="muted">أدخل رقم مهمة محفوظة لعرض تفاصيلها.</p><form id="lookupForm"><label for="taskId">معرّف المهمة</label><input id="taskId" placeholder="UUID"><button class="secondary" type="submit">عرض المهمة</button></form><div id="lookupResult"></div></section>
+<section class="panel"><h2>المهام السابقة</h2><p class="muted">أدخل معرّف المشروع لاسترجاع محتوى ملفات المصدر ونسخها.</p><form id="lookupForm"><label for="taskId">معرّف المهمة</label><input id="taskId" placeholder="UUID"><button class="secondary" type="submit">عرض ملفات المشروع</button></form><div id="lookupResult"></div></section>
 <footer>هذه لوحة محلية. لا تشغّل الشيفرات التي ينتجها النموذج. يلزم إكمال sandbox آمن قبل بناء المشاريع فعليًا.</footer>
 </main>
 </body>
